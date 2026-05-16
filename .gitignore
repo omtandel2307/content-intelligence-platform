@@ -1,0 +1,23 @@
+# Node
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+
+# Java
+target/
+.gradle/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

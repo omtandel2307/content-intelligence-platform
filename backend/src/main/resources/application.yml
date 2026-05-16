@@ -1,0 +1,49 @@
+spring:
+  config:
+    import: optional:file:.env[.properties],optional:file:../.env[.properties]
+  application:
+    name: content-intelligence-platform-backend
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:55432/content_platform}
+    username: ${DATABASE_USERNAME:content_platform}
+    password: ${DATABASE_PASSWORD:content_platform}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+youtube:
+  api:
+    key: ${YOUTUBE_API_KEY:}
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY:}
+    model: ${OPENAI_MODEL:gpt-5.4-mini}
+
+local-ai:
+  ollama:
+    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    chat-model: ${OLLAMA_CHAT_MODEL:llama3.2:3b}
+    embedding-model: ${OLLAMA_EMBEDDING_MODEL:embeddinggemma}
+  rag:
+    max-chunks: ${RAG_MAX_CHUNKS:120}
+    chunk-word-count: ${RAG_CHUNK_WORD_COUNT:220}
+    chunk-overlap-word-count: ${RAG_CHUNK_OVERLAP_WORD_COUNT:50}
+    top-k: ${RAG_TOP_K:5}
+
+app:
+  cors:
+    allowed-origin: http://localhost:3000
