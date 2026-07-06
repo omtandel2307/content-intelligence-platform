@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
@@ -218,17 +219,27 @@ public class ContentQuizService {
             );
         }
     }
-
     private String generateQuestionByQuestionQuiz(String title, String transcriptText) {
         try {
             ArrayNode normalizedQuestions = objectMapper.createArrayNode();
+            List<Boolean> desiredAnswers = new ArrayList<>(List.of(true, true, false, false, true));
+            List<String> questionSkills = questionSkillPattern();
+            Collections.shuffle(desiredAnswers);
 
             for (int index = 0; index < QUESTION_COUNT; index++) {
+                boolean desiredAnswer = desiredAnswers.get(index);
+                String questionSkill = questionSkills.get(index % questionSkills.size());
                 String quizJson = openAiClient.generateJson(
                         quizSystemPrompt(),
-                        singleQuestionPrompt(title, transcriptExcerpt(transcriptText, index), index + 1)
+                        singleQuestionPrompt(
+                                title,
+                                transcriptExcerpt(transcriptText, index),
+                                index + 1,
+                                desiredAnswer,
+                                questionSkill
+                        )
                 );
-                normalizedQuestions.add(normalizeSingleQuestion(quizJson, index + 1));
+                normalizedQuestions.add(normalizeSingleQuestion(quizJson, index + 1, desiredAnswer));
             }
 
             ObjectNode root = objectMapper.createObjectNode();
@@ -245,7 +256,19 @@ public class ContentQuizService {
         }
     }
 
-    private ObjectNode normalizeSingleQuestion(String quizJson, int questionIndex) {
+    private List<String> questionSkillPattern() {
+        List<String> skills = new ArrayList<>(List.of(
+                "factual recall",
+                "cause and effect",
+                "comparison between ideas",
+                "inference from the transcript",
+                "misconception detection"
+        ));
+        Collections.shuffle(skills);
+        return skills;
+    }
+
+    private ObjectNode normalizeSingleQuestion(String quizJson, int questionIndex, boolean desiredAnswer) {
         JsonNode question = parseSingleQuestion(quizJson);
         String questionText = firstText(question, "question", "statement", "text");
 
@@ -256,11 +279,21 @@ public class ContentQuizService {
             );
         }
 
+        int correctOptionIndex = resolveTrueFalseAnswer(question);
+        int expectedOptionIndex = desiredAnswer ? 0 : 1;
+
+        if (correctOptionIndex != expectedOptionIndex) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "OpenAI generated a quiz answer that did not match the requested true/false balance."
+            );
+        }
+
         ObjectNode normalizedQuestion = objectMapper.createObjectNode();
         normalizedQuestion.put("id", "q" + questionIndex);
         normalizedQuestion.put("question", questionText);
         normalizedQuestion.set("options", trueFalseOptions());
-        normalizedQuestion.put("correctOptionIndex", resolveTrueFalseAnswer(question));
+        normalizedQuestion.put("correctOptionIndex", correctOptionIndex);
         normalizedQuestion.put(
                 "explanation",
                 firstText(question, "explanation", "reason", "rationale")
@@ -464,31 +497,57 @@ public class ContentQuizService {
                 """;
     }
 
-    private String singleQuestionPrompt(String title, String transcriptExcerpt, int questionNumber) {
+    private String singleQuestionPrompt(
+            String title,
+            String transcriptExcerpt,
+            int questionNumber,
+            boolean desiredAns,
+            String questionSkill
+    ) {
+        int correctOptionIndex = desiredAns ? 0 : 1;
+        String correctAnswer = desiredAns ? "True" : "False";
         return """
                 Create exactly 1 true/false quiz question from this transcript excerpt.
                 This is question %d of %d.
+
+                The target correct answer is: %s.
+                The question focus is: %s.
 
                 Return exactly this JSON shape:
                 {
                   "question": "A factual statement about the transcript excerpt",
                   "options": ["True", "False"],
-                  "correctOptionIndex": 0,
+                  "correctOptionIndex": %d,
                   "explanation": "One sentence explaining why the answer is correct."
                 }
 
                 Rules:
                 - The question must be answerable from the transcript excerpt.
+                - Make the question medium difficulty.
+                - Avoid copying obvious wording directly from the transcript.
+                - If the target correct answer is True, write a statement directly supported by the transcript excerpt.
+                - If the target correct answer is False, write a plausible but clearly contradicted statement.
+                - For false statements, prefer subtle mistakes such as reversing cause/effect, changing scope, confusing two concepts, or overstating a claim.
+                - The explanation must explain why the generated statement is true or false according to the transcript.
                 - Use exactly the field names shown above.
                 - Use exactly these options: ["True", "False"].
-                - correctOptionIndex must be 0 or 1, not a boolean.
+                - correctOptionIndex must be exactly %d.
                 - Return one JSON object only.
 
                 Video title: %s
 
                 Transcript excerpt:
                 %s
-                """.formatted(questionNumber, QUESTION_COUNT, title, transcriptExcerpt);
+                """.formatted(
+                questionNumber,
+                QUESTION_COUNT,
+                correctAnswer,
+                questionSkill,
+                correctOptionIndex,
+                correctOptionIndex,
+                title,
+                transcriptExcerpt
+        );
     }
 
     private String quizUserPrompt(String title, String transcriptText) {

@@ -284,6 +284,19 @@ public class LearningLabService {
         return """
                 Compare these two saved YouTube videos for a learner.
 
+                First decide whether these videos are meaningfully comparable.
+                They are meaningfully comparable only if they share a topic,
+                domain, problem, skill, technology, or learning path.
+                If they are very dissimilar, do not force a comparison.
+                For very dissimilar videos, return the same JSON shape with:
+                - commonGround as an empty array
+                - firstVideoStrengths as an empty array
+                - secondVideoStrengths as an empty array
+                - disagreementsOrGaps containing one clear sentence saying the videos are very dissimilar
+                - bestForBeginners saying they are not comparable because they teach unrelated subjects
+                - bestForDepth saying they are not comparable because they teach unrelated subjects
+                - learningRecommendation saying to treat them as separate learning paths instead of choosing a watch order
+
                 Return exactly this JSON shape:
                 {
                   "commonGround": ["shared teaching point"],
@@ -354,7 +367,9 @@ public class LearningLabService {
         return """
                 You compare learning videos using transcript evidence.
                 Return strict JSON only. Do not use markdown or commentary.
-                Be practical: identify overlap, differences, gaps, and watch order.
+                Be practical: first detect whether the videos are meaningfully related.
+                If they are very dissimilar, say so clearly instead of inventing overlap.
+                If they are comparable, identify overlap, differences, gaps, and watch order.
                 """;
     }
 
