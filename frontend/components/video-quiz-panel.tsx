@@ -56,7 +56,7 @@ export function VideoQuizPanel({
 
   async function generateQuiz() {
     setError("");
-    setStatus("Generating true/false quiz with Ollama...");
+    setStatus("Generating true/false quiz with OpenAI...");
     setIsGenerating(true);
     setGrade(null);
 
@@ -73,7 +73,7 @@ export function VideoQuizPanel({
 
       setQuiz(body as QuizDetails);
       setAnswers({});
-      setStatus(`Quiz generated locally with ${body.model}.`);
+      setStatus(`Quiz generated with ${body.model}.`);
     } catch (exception) {
       setError(
         exception instanceof Error
@@ -141,7 +141,7 @@ export function VideoQuizPanel({
         <p className="eyebrow">Quiz</p>
         <h2 className="section-title">Test yourself with true/false questions.</h2>
         <p className="body-copy">
-          Ollama generates the quiz from the stored transcript. Your answers are
+          OpenAI generates the quiz from the stored transcript. Your answers are
           graded by the backend against the saved answer key.
         </p>
       </div>

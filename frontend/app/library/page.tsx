@@ -112,7 +112,7 @@ export default async function LibraryPage() {
           <h1 className="page-title">Your content command center.</h1>
           <p className="body-copy">
             Every saved video becomes a workspace for transcripts, OpenAI
-            summaries, and local RAG conversations.
+            summaries, and RAG conversations.
           </p>
         </header>
 

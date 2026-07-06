@@ -56,7 +56,7 @@ export function LocalRagChatPanel({
 
   async function prepareIndex() {
     setError("");
-    setStatus("Building local RAG index with Ollama embeddings...");
+    setStatus("Building RAG index with OpenAI embeddings...");
     setIsIndexing(true);
 
     try {
@@ -71,7 +71,7 @@ export function LocalRagChatPanel({
       }
 
       setStatus(
-        `Local RAG ready: ${body.chunkCount} chunks indexed with ${body.embeddingModel}.`
+        `RAG ready: ${body.chunkCount} chunks indexed with ${body.embeddingModel}.`
       );
     } catch (exception) {
       setError(
@@ -94,7 +94,7 @@ export function LocalRagChatPanel({
     }
 
     setError("");
-    setStatus("Asking your local model...");
+    setStatus("Asking OpenAI...");
     setIsAsking(true);
 
     try {
@@ -121,10 +121,10 @@ export function LocalRagChatPanel({
       setShowSources(false);
       setShowAllMessages(false);
       setMessage("");
-      setStatus(`Answered locally with ${chat.provider}: ${chat.model}.`);
+      setStatus(`Answered with ${chat.provider}: ${chat.model}.`);
     } catch (exception) {
       setError(
-        exception instanceof Error ? exception.message : "Local chat failed."
+        exception instanceof Error ? exception.message : "AI chat failed."
       );
       setStatus("");
     } finally {
@@ -135,11 +135,11 @@ export function LocalRagChatPanel({
   return (
     <section className="panel">
       <div className="stack">
-        <p className="eyebrow">Local RAG Chat</p>
-        <h2 className="section-title">Ask this video using your own LLM.</h2>
+        <p className="eyebrow">RAG Chat</p>
+        <h2 className="section-title">Ask this video with OpenAI.</h2>
         <p className="body-copy">
-          Ollama answers locally after retrieving the most relevant transcript
-          chunks from Postgres.
+          OpenAI answers after retrieving the most relevant transcript chunks
+          from Postgres.
         </p>
       </div>
 
@@ -149,7 +149,7 @@ export function LocalRagChatPanel({
         onClick={prepareIndex}
         disabled={disabled || isIndexing || isAsking}
       >
-        {isIndexing ? "Preparing local RAG..." : "Prepare local RAG index"}
+        {isIndexing ? "Preparing RAG..." : "Prepare RAG index"}
       </button>
 
       <form className="stack" onSubmit={askQuestion}>
@@ -169,7 +169,7 @@ export function LocalRagChatPanel({
           type="submit"
           disabled={disabled || isAsking || isIndexing}
         >
-          {isAsking ? "Thinking locally..." : "Ask local AI"}
+          {isAsking ? "Thinking..." : "Ask AI"}
         </button>
       </form>
 
@@ -205,7 +205,7 @@ export function LocalRagChatPanel({
               <p className="chat-author">
                 {chatMessage.role === "USER"
                   ? "You"
-                  : `Local AI - ${chatMessage.model}`}
+                  : `AI - ${chatMessage.model}`}
               </p>
               {chatMessage.role === "ASSISTANT" ? (
                 <FormattedAiText text={chatMessage.content} />

@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Content Intelligence",
   description:
-    "Search YouTube, save videos, summarize transcripts, and chat with local RAG.",
+    "Search YouTube, save videos, summarize transcripts, and chat with RAG.",
 };
 
 export default function RootLayout({

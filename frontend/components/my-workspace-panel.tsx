@@ -1,12 +1,8 @@
 import Link from "next/link";
 import {
   LibraryChatMessage,
-  LibraryRagChatPanel,
 } from "./library-rag-chat-panel";
-import { KnowledgeMapPanel } from "./knowledge-map-panel";
-import { CompareVideosPanel } from "./compare-videos-panel";
-import { LearningTimelinePanel } from "./learning-timeline-panel";
-import { ProjectBuilderPanel } from "./project-builder-panel";
+import { WorkspaceToolsTabs } from "./workspace-tools-tabs";
 
 type WorkspaceSavedVideo = {
   videoId: string;
@@ -47,7 +43,7 @@ export async function MyWorkspacePanel({ accountId }: { accountId: string }) {
         <p className="eyebrow">My Workspace</p>
         <h2 className="section-title">Create an account to start saving work.</h2>
         <p className="body-copy">
-          Your library, video notes, and local AI chats will appear here once an
+          Your library, video notes, and AI chats will appear here once an
           account is selected.
         </p>
       </section>
@@ -86,87 +82,17 @@ export async function MyWorkspacePanel({ accountId }: { accountId: string }) {
         </div>
       </div>
 
-      <div className="workspace-feature-grid">
-        <LibraryRagChatPanel
+      <div className="workspace-main-layout">
+        <WorkspaceToolsTabs
           accountId={accountId}
+          savedVideoCount={workspace.savedVideoCount}
           initialMessages={libraryChatMessages}
-          disabled={workspace.savedVideoCount === 0}
         />
 
-        <KnowledgeMapPanel
-          accountId={accountId}
-          disabled={workspace.savedVideoCount === 0}
-        />
-
-        <CompareVideosPanel
-          accountId={accountId}
-          disabled={workspace.savedVideoCount < 2}
-        />
-
-        <ProjectBuilderPanel
-          accountId={accountId}
-          disabled={workspace.savedVideoCount === 0}
-        />
-      </div>
-
-      <LearningTimelinePanel
-        accountId={accountId}
-        disabled={workspace.savedVideoCount === 0}
-      />
-
-      <div className="workspace-grid">
-        <div className="stack">
-          <div className="meta-row">
-            <p className="detail-label">Recent videos</p>
-            <Link className="surface-chip" href="/library">
-              Open library
-            </Link>
-          </div>
-
-          {workspace.recentVideos.length > 0 ? (
-            workspace.recentVideos.map((video) => (
-              <Link
-                className="workspace-video-row"
-                href={`/video/${video.videoId}`}
-                key={video.videoId}
-              >
-                {video.thumbnailUrl ? (
-                  <img src={video.thumbnailUrl} alt={video.title} />
-                ) : (
-                  <div />
-                )}
-                <span>
-                  <strong>{video.title}</strong>
-                  <small>{video.channelTitle}</small>
-                </span>
-              </Link>
-            ))
-          ) : (
-            <p className="status-text">
-              No saved videos yet. Search above and save your first one.
-            </p>
-          )}
-        </div>
-
-        <div className="stack">
-          <p className="detail-label">Recent chats</p>
-          {workspace.recentChats.length > 0 ? (
-            workspace.recentChats.map((chat) => (
-              <Link
-                className="workspace-chat-row"
-                href={`/video/${chat.videoId}`}
-                key={`${chat.videoId}-${chat.createdAt}`}
-              >
-                <strong>{chat.title}</strong>
-                <span>You asked: {chat.contentPreview}</span>
-              </Link>
-            ))
-          ) : (
-            <p className="status-text">
-              No saved chat history yet. Ask a question on any video workspace.
-            </p>
-          )}
-        </div>
+        <aside className="workspace-activity-rail">
+          <RecentVideos videos={workspace.recentVideos} />
+          <RecentChats chats={workspace.recentChats} />
+        </aside>
       </div>
     </section>
   );
@@ -213,6 +139,68 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="metric-card">
       <p className="metric-label">{label}</p>
       <p className="metric-value">{value}</p>
+    </div>
+  );
+}
+
+function RecentVideos({ videos }: { videos: WorkspaceSavedVideo[] }) {
+  return (
+    <div className="workspace-activity-card">
+      <div className="meta-row">
+        <p className="detail-label">Recent videos</p>
+        <Link className="surface-chip" href="/library">
+          Open library
+        </Link>
+      </div>
+
+      {videos.length > 0 ? (
+        videos.slice(0, 4).map((video) => (
+          <Link
+            className="workspace-video-row"
+            href={`/video/${video.videoId}`}
+            key={video.videoId}
+          >
+            {video.thumbnailUrl ? (
+              <img src={video.thumbnailUrl} alt={video.title} />
+            ) : (
+              <div />
+            )}
+            <span>
+              <strong>{video.title}</strong>
+              <small>{video.channelTitle}</small>
+            </span>
+          </Link>
+        ))
+      ) : (
+        <p className="status-text">
+          No saved videos yet. Search and save a video to start the workspace.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RecentChats({ chats }: { chats: WorkspaceChat[] }) {
+  return (
+    <div className="workspace-activity-card">
+      <p className="detail-label">Recent chats</p>
+
+      {chats.length > 0 ? (
+        chats.slice(0, 4).map((chat) => (
+          <Link
+            className="workspace-chat-row"
+            href={`/video/${chat.videoId}`}
+            key={`${chat.videoId}-${chat.createdAt}`}
+          >
+            <strong>{chat.title}</strong>
+            <span>You asked: {chat.contentPreview}</span>
+          </Link>
+        ))
+      ) : (
+        <p className="status-text">
+          Ask a question on any video workspace to build chat history.
+        </p>
+      )}
     </div>
   );
 }

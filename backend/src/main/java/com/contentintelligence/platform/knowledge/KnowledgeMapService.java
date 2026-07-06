@@ -1,6 +1,7 @@
 package com.contentintelligence.platform.knowledge;
 
 import com.contentintelligence.platform.account.UserAccountService;
+import com.contentintelligence.platform.ai.OpenAiClient;
 import com.contentintelligence.platform.content.AccountSavedContent;
 import com.contentintelligence.platform.content.AccountSavedContentRepository;
 import com.contentintelligence.platform.content.ContentItem;
@@ -8,7 +9,6 @@ import com.contentintelligence.platform.content.ContentItemRepository;
 import com.contentintelligence.platform.knowledge.dto.KnowledgeMapLinkResponse;
 import com.contentintelligence.platform.knowledge.dto.KnowledgeMapNodeResponse;
 import com.contentintelligence.platform.knowledge.dto.KnowledgeMapResponse;
-import com.contentintelligence.platform.rag.OllamaClient;
 import com.contentintelligence.platform.transcript.ContentTranscript;
 import com.contentintelligence.platform.transcript.ContentTranscriptRepository;
 import com.contentintelligence.platform.transcript.TranscriptStatus;
@@ -43,7 +43,7 @@ public class KnowledgeMapService {
     private final AccountSavedContentRepository savedContentRepository;
     private final ContentItemRepository contentItemRepository;
     private final ContentTranscriptRepository transcriptRepository;
-    private final OllamaClient ollamaClient;
+    private final OpenAiClient openAiClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public KnowledgeMapService(
@@ -51,13 +51,13 @@ public class KnowledgeMapService {
             AccountSavedContentRepository savedContentRepository,
             ContentItemRepository contentItemRepository,
             ContentTranscriptRepository transcriptRepository,
-            OllamaClient ollamaClient
+            OpenAiClient openAiClient
     ) {
         this.accountService = accountService;
         this.savedContentRepository = savedContentRepository;
         this.contentItemRepository = contentItemRepository;
         this.transcriptRepository = transcriptRepository;
-        this.ollamaClient = ollamaClient;
+        this.openAiClient = openAiClient;
     }
 
     public KnowledgeMapResponse generateKnowledgeMap(String accountId) {
@@ -92,7 +92,7 @@ public class KnowledgeMapService {
         Map<String, ContentItem> contentByVideoId = contentItemRepository.findAllById(savedVideoIds)
                 .stream()
                 .collect(Collectors.toMap(ContentItem::getVideoId, Function.identity()));
-        String mapJson = ollamaClient.generateJson(
+        String mapJson = openAiClient.generateJson(
                 systemPrompt(),
                 userPrompt(readyTranscripts, contentByVideoId)
         );
@@ -113,7 +113,7 @@ public class KnowledgeMapService {
             if (!rawNodes.isArray() || rawNodes.isEmpty()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_GATEWAY,
-                        "Ollama knowledge map response did not include topic nodes."
+                        "OpenAI knowledge map response did not include topic nodes."
                 );
             }
 
@@ -191,8 +191,8 @@ public class KnowledgeMapService {
 
             return new KnowledgeMapResponse(
                     accountId,
-                    "ollama",
-                    ollamaClient.getChatModel(),
+                    "openai",
+                    openAiClient.getChatModel(),
                     Instant.now(),
                     List.copyOf(nodesById.values()),
                     links
@@ -202,7 +202,7 @@ public class KnowledgeMapService {
         } catch (IOException exception) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "Ollama knowledge map JSON could not be parsed. Try generating again.",
+                    "OpenAI knowledge map JSON could not be parsed. Try generating again.",
                     exception
             );
         }
@@ -324,7 +324,7 @@ public class KnowledgeMapService {
 
         throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY,
-                "Ollama did not return JSON."
+            "OpenAI did not return JSON."
         );
     }
 

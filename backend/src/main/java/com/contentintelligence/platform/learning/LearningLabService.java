@@ -1,6 +1,7 @@
 package com.contentintelligence.platform.learning;
 
 import com.contentintelligence.platform.account.UserAccountService;
+import com.contentintelligence.platform.ai.OpenAiClient;
 import com.contentintelligence.platform.content.AccountSavedContent;
 import com.contentintelligence.platform.content.AccountSavedContentRepository;
 import com.contentintelligence.platform.content.ContentItem;
@@ -15,7 +16,6 @@ import com.contentintelligence.platform.quiz.ContentQuiz;
 import com.contentintelligence.platform.quiz.ContentQuizRepository;
 import com.contentintelligence.platform.rag.LibraryChatMessage;
 import com.contentintelligence.platform.rag.LibraryChatMessageRepository;
-import com.contentintelligence.platform.rag.OllamaClient;
 import com.contentintelligence.platform.rag.RagChatMessage;
 import com.contentintelligence.platform.rag.RagChatMessageRepository;
 import com.contentintelligence.platform.rag.RagChatRole;
@@ -46,7 +46,6 @@ import java.util.stream.Collectors;
 public class LearningLabService {
 
     private static final int MAX_EXCERPT_LENGTH = 4500;
-    private static final int MAX_LIBRARY_CONTEXT_LENGTH = 28000;
 
     private final UserAccountService accountService;
     private final AccountSavedContentRepository savedContentRepository;
@@ -56,7 +55,7 @@ public class LearningLabService {
     private final ContentQuizRepository quizRepository;
     private final RagChatMessageRepository ragChatMessageRepository;
     private final LibraryChatMessageRepository libraryChatMessageRepository;
-    private final OllamaClient ollamaClient;
+    private final OpenAiClient openAiClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public LearningLabService(
@@ -68,7 +67,7 @@ public class LearningLabService {
             ContentQuizRepository quizRepository,
             RagChatMessageRepository ragChatMessageRepository,
             LibraryChatMessageRepository libraryChatMessageRepository,
-            OllamaClient ollamaClient
+            OpenAiClient openAiClient
     ) {
         this.accountService = accountService;
         this.savedContentRepository = savedContentRepository;
@@ -78,7 +77,7 @@ public class LearningLabService {
         this.quizRepository = quizRepository;
         this.ragChatMessageRepository = ragChatMessageRepository;
         this.libraryChatMessageRepository = libraryChatMessageRepository;
-        this.ollamaClient = ollamaClient;
+        this.openAiClient = openAiClient;
     }
 
     public CompareVideosResponse compareVideos(String accountId, List<String> videoIds) {
@@ -105,15 +104,15 @@ public class LearningLabService {
             }
         }
 
-        String json = ollamaClient.generateJson(
+        String json = openAiClient.generateJson(
                 compareSystemPrompt(),
                 compareUserPrompt(videoIds, contentByVideoId, transcriptByVideoId)
         );
-        JsonNode root = readJson(json, "Ollama video comparison JSON could not be parsed.");
+        JsonNode root = readJson(json, "OpenAI video comparison JSON could not be parsed.");
 
         return new CompareVideosResponse(
-                "ollama",
-                ollamaClient.getChatModel(),
+                "openai",
+                openAiClient.getChatModel(),
                 Instant.now(),
                 videoBrief(contentByVideoId.get(videoIds.get(0))),
                 videoBrief(contentByVideoId.get(videoIds.get(1))),
@@ -129,33 +128,11 @@ public class LearningLabService {
 
     public ProjectPlanResponse generateProjectPlan(String accountId, String goal) {
         accountService.requireAccount(accountId);
-        List<String> savedVideoIds = savedVideoIds(accountId);
-        if (savedVideoIds.isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Save videos before generating a project plan."
-            );
-        }
-
-        List<ContentTranscript> readyTranscripts = transcriptRepository.findAllById(savedVideoIds)
-                .stream()
-                .filter(this::isReadyTranscript)
-                .toList();
-        if (readyTranscripts.isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Fetch transcripts for saved videos before generating a project plan."
-            );
-        }
-
-        Map<String, ContentItem> contentByVideoId = contentItemRepository.findAllById(savedVideoIds)
-                .stream()
-                .collect(Collectors.toMap(ContentItem::getVideoId, Function.identity()));
-        String json = ollamaClient.generateJson(
+        String json = openAiClient.generateJson(
                 projectSystemPrompt(),
-                projectUserPrompt(goal, readyTranscripts, contentByVideoId)
+                projectUserPrompt(goal)
         );
-        JsonNode root = readJson(json, "Ollama project plan JSON could not be parsed.");
+        JsonNode root = readJson(json, "OpenAI project plan JSON could not be parsed.");
         List<ProjectPhaseResponse> phases = new ArrayList<>();
 
         for (JsonNode phase : root.path("phases")) {
@@ -167,8 +144,8 @@ public class LearningLabService {
         }
 
         return new ProjectPlanResponse(
-                "ollama",
-                ollamaClient.getChatModel(),
+                "openai",
+                openAiClient.getChatModel(),
                 Instant.now(),
                 root.path("title").asText("Saved Video Project"),
                 root.path("objective").asText("Build a practical project using ideas from your saved videos."),
@@ -335,27 +312,9 @@ public class LearningLabService {
         );
     }
 
-    private String projectUserPrompt(
-            String goal,
-            List<ContentTranscript> transcripts,
-            Map<String, ContentItem> contentByVideoId
-    ) {
-        StringBuilder context = new StringBuilder();
-
-        for (ContentTranscript transcript : transcripts) {
-            if (context.length() >= MAX_LIBRARY_CONTEXT_LENGTH) {
-                break;
-            }
-
-            context.append("Video: ")
-                    .append(titleFor(contentByVideoId, transcript.getVideoId()))
-                    .append("\nTranscript excerpt:\n")
-                    .append(excerpt(transcript.getTranscriptText()))
-                    .append("\n\n");
-        }
-
+    private String projectUserPrompt(String goal) {
         return """
-                Create a practical project plan from the user's saved video transcripts.
+                Create a practical, portfolio-grade software project plan for the user.
 
                 Return exactly this JSON shape:
                 {
@@ -376,18 +335,18 @@ public class LearningLabService {
                 - Return JSON only.
                 - Make 4 to 6 phases.
                 - Keep tasks concrete and buildable.
-                - Use the user's goal if provided, otherwise infer a project from the transcripts.
+                - Use modern, sensible engineering choices.
+                - Prefer a project with clear user value, a realistic scope, and demonstrable technical depth.
+                - If the user gives a goal, tailor the plan to it.
+                - If the user does not give a goal, choose a strong project idea yourself.
+                - Include implementation tasks, not vague learning advice.
 
                 User goal:
                 %s
-
-                Saved transcript context:
-                %s
                 """.formatted(
                 goal == null || goal.isBlank()
-                        ? "Infer a strong portfolio project from the saved videos."
-                        : goal.trim(),
-                context.substring(0, Math.min(context.length(), MAX_LIBRARY_CONTEXT_LENGTH))
+                        ? "Choose the best practical portfolio project for a motivated full-stack learner."
+                        : goal.trim()
         );
     }
 
@@ -401,9 +360,9 @@ public class LearningLabService {
 
     private String projectSystemPrompt() {
         return """
-                You design portfolio project plans from learning transcripts.
+                You design excellent portfolio software project plans.
                 Return strict JSON only. Do not use markdown or commentary.
-                Prefer concrete tasks over vague advice.
+                Prefer concrete tasks, production-minded architecture, and realistic milestones over vague advice.
                 """;
     }
 
@@ -423,7 +382,7 @@ public class LearningLabService {
             return text.substring(objectStart, objectEnd + 1);
         }
 
-        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Ollama did not return JSON.");
+        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "OpenAI did not return JSON.");
     }
 
     private List<String> stringList(JsonNode node) {

@@ -36,7 +36,7 @@ export function ProjectBuilderPanel({
 
   async function generatePlan() {
     setError("");
-    setStatus("Turning your saved videos into a project plan...");
+    setStatus("Asking OpenAI to design a project plan...");
     setIsGenerating(true);
 
     try {
@@ -75,10 +75,10 @@ export function ProjectBuilderPanel({
     <div className="learning-card">
       <div className="stack">
         <p className="eyebrow">Project Builder</p>
-        <h3 className="section-title">Convert saved videos into a build plan.</h3>
+        <h3 className="section-title">Design a strong portfolio project.</h3>
         <p className="body-copy">
-          Describe what you want to build, or leave it blank and let Ollama
-          infer a portfolio project from your saved transcripts.
+          Describe what you want to build, or leave it blank and let OpenAI
+          choose a practical project with the best stack, phases, and scope.
         </p>
       </div>
 

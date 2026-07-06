@@ -93,7 +93,7 @@ export function CompareVideosPanel({
     }
 
     setError("");
-    setStatus("Comparing both transcripts with Ollama...");
+    setStatus("Comparing both transcripts with OpenAI...");
     setIsComparing(true);
 
     try {
@@ -147,7 +147,7 @@ export function CompareVideosPanel({
         <p className="eyebrow">Compare Videos</p>
         <h3 className="section-title">Find overlap, gaps, and best watch order.</h3>
         <p className="body-copy">
-          Pick two saved videos with transcripts and let local AI compare what
+          Pick two saved videos with transcripts and let AI compare what
           each one teaches better.
         </p>
       </div>

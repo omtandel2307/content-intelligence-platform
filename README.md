@@ -11,7 +11,7 @@ The app lets a user search YouTube, save videos to an account-specific library, 
 - **Saved video library** with concise descriptions and direct video workspaces.
 - **Transcript ingestion** using a Java YouTube transcript library.
 - **OpenAI summaries** for clean study summaries from transcripts.
-- **Local AI chat with Ollama** for video-level RAG over transcript chunks.
+- **OpenAI RAG chat** for video-level questions over transcript chunks.
 - **Ask across all saved videos** with account-level RAG.
 - **AI quizzes** generated from transcripts and graded in-app.
 - **AI knowledge map** that extracts connected learning topics from saved videos.
@@ -26,8 +26,7 @@ The app lets a user search YouTube, save videos to an account-specific library, 
 | Frontend | Next.js 15, React 19, TypeScript |
 | Backend | Spring Boot 4, Java 21, Maven |
 | Database | PostgreSQL |
-| Local AI | Ollama chat model + embedding model |
-| Hosted AI | OpenAI Responses API |
+| AI | OpenAI Responses API + embeddings |
 | Infra | Docker Compose for Postgres and Redis |
 
 ## Architecture
@@ -44,8 +43,7 @@ High-level flow:
 
 ```text
 YouTube API -> Spring Boot -> PostgreSQL -> Next.js UI
-                         -> OpenAI summaries
-                         -> Ollama embeddings + local RAG
+                         -> OpenAI summaries, embeddings, RAG, and learning tools
 ```
 
 ## Core Features
@@ -61,7 +59,7 @@ Each video has a workspace for:
 - metadata and thumbnail
 - transcript fetching
 - OpenAI summary generation
-- local RAG chat with Ollama
+- OpenAI RAG chat
 - true/false quiz generation and grading
 
 ### My Workspace
@@ -84,14 +82,6 @@ Install these before running locally:
 - Maven
 - Node.js 20+
 - Docker Desktop
-- Ollama
-
-Pull the local AI models:
-
-```bash
-ollama pull llama3.2:3b
-ollama pull embeddinggemma
-```
 
 ## Environment Variables
 
@@ -106,9 +96,7 @@ Example backend values:
 YOUTUBE_API_KEY=your_youtube_api_key
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL=gpt-5.4-mini
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_CHAT_MODEL=llama3.2:3b
-OLLAMA_EMBEDDING_MODEL=embeddinggemma
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 DATABASE_URL=jdbc:postgresql://localhost:55432/content_platform
 DATABASE_USERNAME=content_platform
 DATABASE_PASSWORD=content_platform
@@ -198,7 +186,7 @@ npx tsc --noEmit
 
 - Account switching is lightweight and does not yet include password-based authentication.
 - Transcript availability depends on YouTube captions being available for a video.
-- Local AI performance depends on the Ollama model and machine hardware.
+- AI feature availability depends on the configured OpenAI API key and model access.
 - Redis is included in local infrastructure but is not deeply used yet.
 
 ## Roadmap

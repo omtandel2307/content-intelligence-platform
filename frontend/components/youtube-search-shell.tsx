@@ -81,7 +81,7 @@ export function YoutubeSearchShell({ accountId }: { accountId: string }) {
             <h1 className="hero-title">Find videos. Turn them into learning assets.</h1>
             <p className="body-copy">
               Search YouTube, save the useful ones, fetch transcripts, summarize
-              with OpenAI, and use Ollama for local AI learning tools.
+              with OpenAI, and use AI learning tools powered by your OpenAI key.
             </p>
 
             <form className="search-form search-form-large" onSubmit={onSubmit}>

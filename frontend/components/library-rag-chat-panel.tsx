@@ -63,7 +63,7 @@ export function LibraryRagChatPanel({
     }
 
     setError("");
-    setStatus("Searching across your saved transcripts with local AI...");
+    setStatus("Searching across your saved transcripts with OpenAI...");
     setIsAsking(true);
 
     try {
@@ -112,7 +112,7 @@ export function LibraryRagChatPanel({
         <p className="eyebrow">Library AI</p>
         <h3 className="section-title">Ask across all saved videos.</h3>
         <p className="body-copy">
-          Ask one question and Ollama will retrieve matching transcript chunks
+          Ask one question and OpenAI will use matching transcript chunks
           from every saved video that has a transcript.
         </p>
       </div>

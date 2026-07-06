@@ -2,18 +2,14 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { AccountSwitcher } from "../../../components/account-switcher";
 import { FetchTranscriptButton } from "../../../components/fetch-transcript-button";
-import { FormattedAiText } from "../../../components/formatted-ai-text";
-import { GenerateSummaryButton } from "../../../components/generate-summary-button";
 import {
   ChatMessage,
-  LocalRagChatPanel,
 } from "../../../components/local-rag-chat-panel";
 import { SaveVideoButton } from "../../../components/save-video-button";
-import { TranscriptTogglePanel } from "../../../components/transcript-toggle-panel";
 import {
   QuizDetails,
-  VideoQuizPanel,
 } from "../../../components/video-quiz-panel";
+import { VideoWorkspaceTabs } from "../../../components/video-workspace-tabs";
 
 type VideoPageProps = {
   params: Promise<{
@@ -214,7 +210,21 @@ function cleanDescription(value?: string) {
       ? value.slice(0, Math.min(...markerIndexes))
       : value;
 
-  return trimmedDescription.trim() || "No description available.";
+  const compactDescription = trimmedDescription
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!compactDescription) {
+    return "No description available.";
+  }
+
+  const maxLength = 360;
+
+  if (compactDescription.length <= maxLength) {
+    return compactDescription;
+  }
+
+  return compactDescription.substring(0, maxLength).trimEnd() + "...";
 }
 
 export default async function VideoPage({ params }: VideoPageProps) {
@@ -243,8 +253,8 @@ export default async function VideoPage({ params }: VideoPageProps) {
 
         <AccountSwitcher initialAccountId={accountId} />
 
-        <div className="content-layout">
-          <section className="stack">
+        <div className="video-overview-layout">
+          <section className="video-hero-panel">
             <div className="page-header">
               <p className="eyebrow">
                 Video Details
@@ -257,38 +267,39 @@ export default async function VideoPage({ params }: VideoPageProps) {
               </p>
             </div>
 
-            {video?.thumbnailUrl ? (
-              <img
-                className="video-thumb"
-                src={video.thumbnailUrl}
-                alt={video.title}
-                style={{ borderRadius: 24, border: "1px solid var(--border)" }}
-              />
-            ) : (
-              <div className="empty-state" style={{ aspectRatio: "16 / 9" }}>
-                Video preview unavailable
-              </div>
-            )}
+            <div className="video-hero-grid">
+              {video?.thumbnailUrl ? (
+                <img
+                  className="video-thumb video-hero-thumb"
+                  src={video.thumbnailUrl}
+                  alt={video.title}
+                />
+              ) : (
+                <div className="video-thumb video-hero-thumb video-thumb-empty">
+                  Video preview unavailable
+                </div>
+              )}
 
-            <div className="metric-grid">
-              <Metric label="Duration" value={formatDuration(video?.duration)} />
-              <Metric label="Views" value={formatNumber(video?.viewCount)} />
-              <Metric label="Likes" value={formatNumber(video?.likeCount)} />
-              <Metric label="Published" value={formatDate(video?.publishedAt)} />
+              <div className="video-facts-grid">
+                <Metric label="Duration" value={formatDuration(video?.duration)} />
+                <Metric label="Views" value={formatNumber(video?.viewCount)} />
+                <Metric label="Likes" value={formatNumber(video?.likeCount)} />
+                <Metric label="Published" value={formatDate(video?.publishedAt)} />
+              </div>
             </div>
           </section>
 
-          <aside className="panel side-panel">
-            <div className="stack">
+          <aside className="video-action-panel">
+            <div className="video-id-block">
               <p className="detail-label">
                 Video ID
               </p>
-              <p className="detail-text" style={{ fontWeight: 900, wordBreak: "break-word" }}>
+              <p className="detail-text">
                 {videoId}
               </p>
             </div>
 
-            <div className="stack">
+            <div className="video-description-block">
               <p className="detail-label">
                 Description
               </p>
@@ -297,77 +308,22 @@ export default async function VideoPage({ params }: VideoPageProps) {
               </p>
             </div>
 
-            <SaveVideoButton videoId={videoId} accountId={accountId} />
-            <FetchTranscriptButton videoId={videoId} accountId={accountId} />
-            <GenerateSummaryButton
-              videoId={videoId}
-              disabled={!hasReadyTranscript}
-            />
+            <div className="video-action-stack">
+              <SaveVideoButton videoId={videoId} accountId={accountId} />
+              <FetchTranscriptButton videoId={videoId} accountId={accountId} />
+            </div>
           </aside>
         </div>
 
-        <section className="panel">
-          <div className="stack">
-            <p className="eyebrow">
-              Summary
-            </p>
-            <h2 className="section-title">
-              {summary?.status === "READY"
-                ? "Generated summary"
-                : summary?.status === "FAILED"
-                  ? "Summary failed"
-                  : "No summary yet"}
-            </h2>
-          </div>
-
-          {summary?.status === "READY" && summary.summaryText ? (
-            <FormattedAiText text={summary.summaryText} />
-          ) : (
-            <p className="body-copy">
-              {summary?.failureReason ||
-                "Generate a summary after the transcript is available."}
-            </p>
-          )}
-        </section>
-
-        <VideoQuizPanel
-          videoId={videoId}
-          disabled={!hasReadyTranscript}
-          initialQuiz={quiz}
-        />
-
-        <LocalRagChatPanel
+        <VideoWorkspaceTabs
           videoId={videoId}
           accountId={accountId}
-          disabled={!hasReadyTranscript}
-          initialMessages={chatHistory}
+          hasReadyTranscript={hasReadyTranscript}
+          summary={summary}
+          transcript={transcript}
+          chatHistory={chatHistory}
+          quiz={quiz}
         />
-
-        <section className="panel">
-          <div className="stack">
-            <p className="eyebrow">
-              Transcript
-            </p>
-            <h2 className="section-title">
-              {transcript?.status === "READY"
-                ? "Stored transcript"
-                : transcript?.status === "UNAVAILABLE"
-                  ? "Transcript unavailable"
-                  : transcript?.status === "FAILED"
-                    ? "Transcript failed"
-                    : "No transcript yet"}
-            </h2>
-          </div>
-
-          {transcript?.status === "READY" && transcript.transcriptText ? (
-            <TranscriptTogglePanel transcriptText={transcript.transcriptText} />
-          ) : (
-            <p className="body-copy">
-              {transcript?.failureReason ||
-                "Fetch the transcript to prepare this video for summaries and chat."}
-            </p>
-          )}
-        </section>
       </section>
     </main>
   );

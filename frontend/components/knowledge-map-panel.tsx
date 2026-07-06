@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import type { CSSProperties } from "react";
 import { useState } from "react";
 
 type KnowledgeNode = {
@@ -19,7 +18,7 @@ type KnowledgeLink = {
   strength: number;
 };
 
-type KnowledgeMap = {
+export type KnowledgeMap = {
   accountId: string;
   provider: string;
   model: string;
@@ -34,19 +33,21 @@ const apiBaseUrl =
 export function KnowledgeMapPanel({
   accountId,
   disabled,
+  knowledgeMap,
+  setKnowledgeMap,
 }: {
   accountId: string;
   disabled: boolean;
+  knowledgeMap: KnowledgeMap | null;
+  setKnowledgeMap: (map: KnowledgeMap | null) => void;
 }) {
-  const [knowledgeMap, setKnowledgeMap] = useState<KnowledgeMap | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
   async function generateMap() {
     setError("");
-    setStatus("Asking Ollama to extract your learning map...");
+    setStatus("Asking OpenAI to extract your learning map...");
     setIsGenerating(true);
 
     try {
@@ -66,7 +67,6 @@ export function KnowledgeMapPanel({
 
       const map = body as KnowledgeMap;
       setKnowledgeMap(map);
-      setSelectedNodeId(map.nodes[0]?.id || "");
       setStatus(`Generated with ${map.provider}: ${map.model}.`);
     } catch (exception) {
       setKnowledgeMap(null);
@@ -81,12 +81,13 @@ export function KnowledgeMapPanel({
     }
   }
 
-  const selectedNode =
-    knowledgeMap?.nodes.find((node) => node.id === selectedNodeId) ||
-    knowledgeMap?.nodes[0];
+  const sortedNodes = [...(knowledgeMap?.nodes || [])].sort(
+    (first, second) => second.importance - first.importance
+  );
   const nodeById = new Map(
     (knowledgeMap?.nodes || []).map((node) => [node.id, node])
   );
+  const focusPath = sortedNodes.slice(0, 5);
 
   return (
     <div className="knowledge-map-card">
@@ -95,7 +96,7 @@ export function KnowledgeMapPanel({
           <p className="eyebrow">AI Knowledge Map</p>
           <h3 className="section-title">See what your saved videos teach.</h3>
           <p className="body-copy">
-            Ollama extracts core topics from saved transcripts and connects how
+            OpenAI extracts core topics from saved transcripts and connects how
             those ideas relate.
           </p>
         </div>
@@ -113,72 +114,84 @@ export function KnowledgeMapPanel({
       {error ? <p className="status-warning">{error}</p> : null}
 
       {knowledgeMap ? (
-        <div className="knowledge-map-layout">
-          <div className="knowledge-node-cloud">
-            {knowledgeMap.nodes.map((node) => (
-              <button
-                className={`knowledge-node ${
-                  node.id === selectedNode?.id ? "knowledge-node-active" : ""
-                }`}
-                key={node.id}
-                onClick={() => setSelectedNodeId(node.id)}
-                style={
-                  {
-                    "--node-weight": node.importance,
-                  } as CSSProperties & Record<"--node-weight", number>
-                }
-                type="button"
-              >
-                <span>{node.label}</span>
-                <small>Importance {node.importance}/5</small>
-              </button>
-            ))}
-          </div>
+        <div className="learning-map-layout">
+          <section className="learning-map-section">
+            <div className="learning-map-section-header">
+              <div>
+                <p className="detail-label">Core topics</p>
+                <p className="status-text">
+                  Ordered by how central each topic appears across your saved
+                  transcripts.
+                </p>
+              </div>
+              <span className="surface-chip">{knowledgeMap.nodes.length} topics</span>
+            </div>
 
-          <div className="knowledge-detail">
-            {selectedNode ? (
-              <>
-                <p className="eyebrow">Selected Topic</p>
-                <h4>{selectedNode.label}</h4>
-                <p className="body-copy">{selectedNode.summary}</p>
-                {selectedNode.videoIds.length > 0 ? (
-                  <div className="topic-video-links">
-                    {selectedNode.videoIds.map((videoId) => (
-                      <Link
-                        className="surface-chip"
-                        href={`/video/${videoId}`}
-                        key={videoId}
-                      >
-                        Open video {videoId}
-                      </Link>
-                    ))}
+            <div className="learning-topic-grid">
+              {sortedNodes.map((node) => (
+                <article className="learning-topic-card" key={node.id}>
+                  <div className="meta-row">
+                    <h4>{node.label}</h4>
+                    <span className="importance-badge">{node.importance}/5</span>
                   </div>
-                ) : (
-                  <p className="status-text">
-                    Ollama did not attach a specific saved video to this topic.
-                  </p>
-                )}
-              </>
-            ) : null}
-          </div>
-
-          {knowledgeMap.links.length > 0 ? (
-            <div className="knowledge-links">
-              <p className="detail-label">Topic relationships</p>
-              {knowledgeMap.links.map((link, index) => (
-                <div className="knowledge-link-row" key={`${link.source}-${link.target}-${index}`}>
-                  <strong>
-                    {nodeById.get(link.source)?.label || link.source}
-                    <span>{" -> "}</span>
-                    {nodeById.get(link.target)?.label || link.target}
-                  </strong>
-                  <small>
-                    {link.relation || "Related concept"} - strength{" "}
-                    {link.strength}/5
-                  </small>
-                </div>
+                  <p className="video-description">{node.summary}</p>
+                  {node.videoIds.length > 0 ? (
+                    <div className="topic-video-links">
+                      {node.videoIds.slice(0, 4).map((videoId) => (
+                        <Link
+                          className="surface-chip"
+                          href={`/video/${videoId}`}
+                          key={videoId}
+                        >
+                          Video {videoId}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="status-text">No source video was attached.</p>
+                  )}
+                </article>
               ))}
             </div>
+          </section>
+
+          {focusPath.length > 0 ? (
+            <section className="learning-map-section">
+              <p className="detail-label">Suggested focus order</p>
+              <div className="learning-path-list">
+                {focusPath.map((node, index) => (
+                  <div className="learning-path-row" key={node.id}>
+                    <span>{index + 1}</span>
+                    <strong>{node.label}</strong>
+                    <small>{node.summary}</small>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {knowledgeMap.links.length > 0 ? (
+            <section className="learning-map-section">
+              <p className="detail-label">Topic connections</p>
+              <div className="knowledge-links-list">
+                {knowledgeMap.links.map((link, index) => (
+                  <div
+                    className="knowledge-link-row"
+                    key={`${link.source}-${link.target}-${index}`}
+                  >
+                    <strong>
+                      {nodeById.get(link.source)?.label || link.source}
+                      <span>{" -> "}</span>
+                      {nodeById.get(link.target)?.label || link.target}
+                    </strong>
+                    <small>
+                      {link.relation || "Related concept"} - strength{" "}
+                      {link.strength}/5
+                    </small>
+                  </div>
+                ))}
+              </div>
+            </section>
           ) : null}
         </div>
       ) : (

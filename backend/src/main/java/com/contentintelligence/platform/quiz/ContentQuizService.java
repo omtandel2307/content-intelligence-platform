@@ -1,5 +1,6 @@
 package com.contentintelligence.platform.quiz;
 
+import com.contentintelligence.platform.ai.OpenAiClient;
 import com.contentintelligence.platform.content.ContentItem;
 import com.contentintelligence.platform.content.ContentItemRepository;
 import com.contentintelligence.platform.quiz.dto.QuizAnswerRequest;
@@ -8,7 +9,6 @@ import com.contentintelligence.platform.quiz.dto.QuizGradeResponse;
 import com.contentintelligence.platform.quiz.dto.QuizGradeResultResponse;
 import com.contentintelligence.platform.quiz.dto.QuizQuestionResponse;
 import com.contentintelligence.platform.quiz.dto.QuizResponse;
-import com.contentintelligence.platform.rag.OllamaClient;
 import com.contentintelligence.platform.transcript.ContentTranscript;
 import com.contentintelligence.platform.transcript.ContentTranscriptRepository;
 import com.contentintelligence.platform.transcript.TranscriptStatus;
@@ -35,19 +35,19 @@ public class ContentQuizService {
     private final ContentQuizRepository quizRepository;
     private final ContentItemRepository contentItemRepository;
     private final ContentTranscriptRepository transcriptRepository;
-    private final OllamaClient ollamaClient;
+    private final OpenAiClient openAiClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ContentQuizService(
             ContentQuizRepository quizRepository,
             ContentItemRepository contentItemRepository,
             ContentTranscriptRepository transcriptRepository,
-            OllamaClient ollamaClient
+            OpenAiClient openAiClient
     ) {
         this.quizRepository = quizRepository;
         this.contentItemRepository = contentItemRepository;
         this.transcriptRepository = transcriptRepository;
-        this.ollamaClient = ollamaClient;
+        this.openAiClient = openAiClient;
     }
 
     public Optional<QuizResponse> getQuiz(String videoId) {
@@ -83,9 +83,9 @@ public class ContentQuizService {
                 .orElseGet(() -> new ContentQuiz(
                         videoId,
                         normalizedQuizJson,
-                        ollamaClient.getChatModel()
+                        openAiClient.getChatModel()
                 ));
-        quiz.replaceWith(normalizedQuizJson, ollamaClient.getChatModel());
+        quiz.replaceWith(normalizedQuizJson, openAiClient.getChatModel());
 
         return toQuizResponse(quizRepository.save(quiz));
     }
@@ -179,7 +179,7 @@ public class ContentQuizService {
                 if (questionText.isBlank()) {
                     throw new ResponseStatusException(
                             HttpStatus.BAD_GATEWAY,
-                            "Ollama quiz response included a question without text."
+                            "OpenAI quiz response included a question without text."
                     );
                 }
 
@@ -201,7 +201,7 @@ public class ContentQuizService {
             if (normalizedQuestions.size() == 0) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_GATEWAY,
-                        "Ollama quiz response did not include questions."
+                        "OpenAI quiz response did not include questions."
                 );
             }
 
@@ -213,7 +213,7 @@ public class ContentQuizService {
         } catch (Exception exception) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "Ollama returned quiz JSON that could not be parsed. Try generating again.",
+                    "OpenAI returned quiz JSON that could not be parsed. Try generating again.",
                     exception
             );
         }
@@ -224,7 +224,7 @@ public class ContentQuizService {
             ArrayNode normalizedQuestions = objectMapper.createArrayNode();
 
             for (int index = 0; index < QUESTION_COUNT; index++) {
-                String quizJson = ollamaClient.generateJson(
+                String quizJson = openAiClient.generateJson(
                         quizSystemPrompt(),
                         singleQuestionPrompt(title, transcriptExcerpt(transcriptText, index), index + 1)
                 );
@@ -239,7 +239,7 @@ public class ContentQuizService {
         } catch (Exception exception) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "Ollama quiz generation failed while creating individual questions.",
+                    "OpenAI quiz generation failed while creating individual questions.",
                     exception
             );
         }
@@ -252,7 +252,7 @@ public class ContentQuizService {
         if (questionText.isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "Ollama quiz response included a question without text."
+                    "OpenAI quiz response included a question without text."
             );
         }
 
@@ -287,7 +287,7 @@ public class ContentQuizService {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "Ollama quiz response did not contain a question object."
+                    "OpenAI quiz response did not contain a question object."
             );
         } catch (IOException exception) {
             throw new ResponseStatusException(
@@ -366,7 +366,7 @@ public class ContentQuizService {
 
         throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY,
-                "Ollama quiz response did not include a usable true/false answer key."
+                "OpenAI quiz response did not include a usable true/false answer key."
         );
     }
 
@@ -441,7 +441,7 @@ public class ContentQuizService {
 
         throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY,
-                "Ollama did not return JSON."
+                "OpenAI did not return JSON."
         );
     }
 

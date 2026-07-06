@@ -1,6 +1,7 @@
 package com.contentintelligence.platform.rag;
 
 import com.contentintelligence.platform.account.UserAccountService;
+import com.contentintelligence.platform.ai.OpenAiClient;
 import com.contentintelligence.platform.content.AccountSavedContent;
 import com.contentintelligence.platform.content.AccountSavedContentRepository;
 import com.contentintelligence.platform.content.ContentItem;
@@ -40,19 +41,22 @@ public class LocalRagService {
     private final RagChatMessageRepository chatMessageRepository;
     private final LibraryChatMessageRepository libraryChatMessageRepository;
     private final UserAccountService accountService;
-    private final OllamaClient ollamaClient;
+    private final OpenAiClient openAiClient;
 
-    @Value("${local-ai.rag.max-chunks}")
+    @Value("${rag.max-chunks}")
     private int maxChunks;
 
-    @Value("${local-ai.rag.chunk-word-count}")
+    @Value("${rag.chunk-word-count}")
     private int chunkWordCount;
 
-    @Value("${local-ai.rag.chunk-overlap-word-count}")
+    @Value("${rag.chunk-overlap-word-count}")
     private int chunkOverlapWordCount;
 
-    @Value("${local-ai.rag.top-k}")
+    @Value("${rag.top-k}")
     private int topK;
+
+    @Value("${rag.embedding-batch-size}")
+    private int embeddingBatchSize;
 
     public LocalRagService(
             TranscriptChunkRepository chunkRepository,
@@ -62,7 +66,7 @@ public class LocalRagService {
             RagChatMessageRepository chatMessageRepository,
             LibraryChatMessageRepository libraryChatMessageRepository,
             UserAccountService accountService,
-            OllamaClient ollamaClient
+            OpenAiClient openAiClient
     ) {
         this.chunkRepository = chunkRepository;
         this.transcriptRepository = transcriptRepository;
@@ -71,19 +75,19 @@ public class LocalRagService {
         this.chatMessageRepository = chatMessageRepository;
         this.libraryChatMessageRepository = libraryChatMessageRepository;
         this.accountService = accountService;
-        this.ollamaClient = ollamaClient;
+        this.openAiClient = openAiClient;
     }
 
     public RagIndexResponse getIndexStatus(String videoId) {
         int chunkCount = (int) chunkRepository.countByVideoIdAndEmbeddingModel(
                 videoId,
-                ollamaClient.getEmbeddingModel()
+                openAiClient.getEmbeddingModel()
         );
 
         return new RagIndexResponse(
                 videoId,
                 chunkCount,
-                ollamaClient.getEmbeddingModel(),
+                openAiClient.getEmbeddingModel(),
                 Instant.now()
         );
     }
@@ -124,24 +128,14 @@ public class LocalRagService {
         List<String> chunks = splitIntoChunks(transcript.getTranscriptText());
         chunkRepository.deleteByVideoId(videoId);
 
-        List<TranscriptChunk> transcriptChunks = new ArrayList<>();
-        for (int index = 0; index < chunks.size(); index++) {
-            List<Double> embedding = ollamaClient.embed(chunks.get(index));
-            transcriptChunks.add(new TranscriptChunk(
-                    videoId,
-                    index,
-                    chunks.get(index),
-                    ollamaClient.serializeEmbedding(embedding),
-                    ollamaClient.getEmbeddingModel()
-            ));
-        }
+        List<TranscriptChunk> transcriptChunks = buildTranscriptChunks(videoId, chunks);
 
         chunkRepository.saveAll(transcriptChunks);
 
         return new RagIndexResponse(
                 videoId,
                 transcriptChunks.size(),
-                ollamaClient.getEmbeddingModel(),
+                openAiClient.getEmbeddingModel(),
                 Instant.now()
         );
     }
@@ -167,7 +161,7 @@ public class LocalRagService {
         List<TranscriptChunk> chunks =
                 chunkRepository.findByVideoIdAndEmbeddingModelOrderByChunkIndexAsc(
                         videoId,
-                        ollamaClient.getEmbeddingModel()
+                        openAiClient.getEmbeddingModel()
                 );
 
         if (chunks.isEmpty()) {
@@ -177,20 +171,20 @@ public class LocalRagService {
             );
         }
 
-        List<Double> questionEmbedding = ollamaClient.embed(trimmedMessage);
+        List<Double> questionEmbedding = openAiClient.embed(trimmedMessage);
         List<ScoredChunk> scoredChunks = chunks.stream()
                 .map(chunk -> new ScoredChunk(
                         chunk,
                         cosineSimilarity(
                                 questionEmbedding,
-                                ollamaClient.parseEmbedding(chunk.getEmbeddingJson())
+                                openAiClient.parseEmbedding(chunk.getEmbeddingJson())
                         )
                 ))
                 .sorted(Comparator.comparingDouble(ScoredChunk::score).reversed())
                 .limit(Math.max(1, topK))
                 .toList();
 
-        String answer = ollamaClient.chat(
+        String answer = openAiClient.chat(
                 systemPrompt(),
                 userPrompt(videoId, trimmedMessage, scoredChunks)
         );
@@ -199,8 +193,8 @@ public class LocalRagService {
                 videoId,
                 RagChatRole.ASSISTANT,
                 answer,
-                "ollama",
-                ollamaClient.getChatModel()
+                "openai",
+                openAiClient.getChatModel()
         ));
         List<RagSourceResponse> sources = scoredChunks.stream()
                 .map(scoredChunk -> new RagSourceResponse(
@@ -213,8 +207,8 @@ public class LocalRagService {
         return new LocalChatResponse(
                 videoId,
                 answer,
-                "ollama",
-                ollamaClient.getChatModel(),
+                "openai",
+                openAiClient.getChatModel(),
                 getChatHistory(accountId, videoId),
                 sources
         );
@@ -264,7 +258,7 @@ public class LocalRagService {
         List<TranscriptChunk> chunks =
                 chunkRepository.findByVideoIdInAndEmbeddingModelOrderByVideoIdAscChunkIndexAsc(
                         readyVideoIds,
-                        ollamaClient.getEmbeddingModel()
+                        openAiClient.getEmbeddingModel()
                 );
 
         if (chunks.isEmpty()) {
@@ -283,13 +277,13 @@ public class LocalRagService {
                 "user"
         ));
 
-        List<Double> questionEmbedding = ollamaClient.embed(trimmedMessage);
+        List<Double> questionEmbedding = openAiClient.embed(trimmedMessage);
         List<ScoredChunk> scoredChunks = chunks.stream()
                 .map(chunk -> new ScoredChunk(
                         chunk,
                         cosineSimilarity(
                                 questionEmbedding,
-                                ollamaClient.parseEmbedding(chunk.getEmbeddingJson())
+                                openAiClient.parseEmbedding(chunk.getEmbeddingJson())
                         )
                 ))
                 .sorted(Comparator.comparingDouble(ScoredChunk::score).reversed())
@@ -299,7 +293,7 @@ public class LocalRagService {
                 .stream()
                 .collect(Collectors.toMap(ContentItem::getVideoId, Function.identity()));
 
-        String answer = ollamaClient.chat(
+        String answer = openAiClient.chat(
                 librarySystemPrompt(),
                 libraryUserPrompt(trimmedMessage, scoredChunks, contentByVideoId)
         );
@@ -307,8 +301,8 @@ public class LocalRagService {
                 accountId,
                 RagChatRole.ASSISTANT,
                 answer,
-                "ollama",
-                ollamaClient.getChatModel()
+                "openai",
+                openAiClient.getChatModel()
         ));
         List<LibraryRagSourceResponse> sources = scoredChunks.stream()
                 .map(scoredChunk -> {
@@ -328,8 +322,8 @@ public class LocalRagService {
 
         return new LibraryChatResponse(
                 answer,
-                "ollama",
-                ollamaClient.getChatModel(),
+                "openai",
+                openAiClient.getChatModel(),
                 getLibraryChatHistory(accountId),
                 sources
         );
@@ -338,7 +332,7 @@ public class LocalRagService {
     private void ensureIndexed(String videoId) {
         long chunkCount = chunkRepository.countByVideoIdAndEmbeddingModel(
                 videoId,
-                ollamaClient.getEmbeddingModel()
+                openAiClient.getEmbeddingModel()
         );
 
         if (chunkCount == 0) {
@@ -450,6 +444,30 @@ public class LocalRagService {
         }
 
         return chunks;
+    }
+
+    private List<TranscriptChunk> buildTranscriptChunks(String videoId, List<String> chunks) {
+        List<TranscriptChunk> transcriptChunks = new ArrayList<>();
+        int batchSize = Math.max(1, embeddingBatchSize);
+
+        for (int start = 0; start < chunks.size(); start += batchSize) {
+            int end = Math.min(start + batchSize, chunks.size());
+            List<String> batch = chunks.subList(start, end);
+            List<List<Double>> embeddings = openAiClient.embedAll(batch);
+
+            for (int batchIndex = 0; batchIndex < batch.size(); batchIndex++) {
+                int chunkIndex = start + batchIndex;
+                transcriptChunks.add(new TranscriptChunk(
+                        videoId,
+                        chunkIndex,
+                        chunks.get(chunkIndex),
+                        openAiClient.serializeEmbedding(embeddings.get(batchIndex)),
+                        openAiClient.getEmbeddingModel()
+                ));
+            }
+        }
+
+        return transcriptChunks;
     }
 
     private double cosineSimilarity(List<Double> first, List<Double> second) {
