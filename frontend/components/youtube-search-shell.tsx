@@ -66,12 +66,12 @@ export function YoutubeSearchShell({ accountId }: { accountId: string }) {
             Content Intelligence
           </Link>
           <div className="nav-actions">
-            <Link className="nav-link" href="/workspace">
+            {/* <Link className="nav-link" href="/workspace">
               Workspace
             </Link>
             <Link className="nav-link" href="/library">
               Library
-            </Link>
+            </Link> */}
           </div>
         </nav>
 

@@ -80,6 +80,15 @@ public class LearningLabService {
         this.openAiClient = openAiClient;
     }
 
+    /**
+     * Compares exactly two saved videos for an account using transcript evidence.
+     *
+     * <p>Validation rules:
+     * - account must exist
+     * - exactly two distinct video IDs are required
+     * - both videos must be saved by the account
+     * - both transcripts must be READY and non-empty
+     */
     public CompareVideosResponse compareVideos(String accountId, List<String> videoIds) {
         accountService.requireAccount(accountId);
         if (videoIds == null || videoIds.size() != 2 || videoIds.get(0).equals(videoIds.get(1))) {
@@ -104,6 +113,7 @@ public class LearningLabService {
             }
         }
 
+            // Ask OpenAI for a strict JSON comparison payload that the API can map directly.
         String json = openAiClient.generateJson(
                 compareSystemPrompt(),
                 compareUserPrompt(videoIds, contentByVideoId, transcriptByVideoId)
@@ -126,6 +136,11 @@ public class LearningLabService {
         );
     }
 
+    /**
+     * Generates a structured portfolio project plan from a user goal.
+     *
+     * <p>If model fields are missing, defaults are applied to keep the response stable.
+     */
     public ProjectPlanResponse generateProjectPlan(String accountId, String goal) {
         accountService.requireAccount(accountId);
         String json = openAiClient.generateJson(
@@ -155,6 +170,10 @@ public class LearningLabService {
         );
     }
 
+    /**
+     * Builds a unified activity timeline for the account by merging saved-content,
+     * transcript, summary, quiz, and chat events into one reverse-chronological feed.
+     */
     public LearningTimelineResponse getTimeline(String accountId) {
         accountService.requireAccount(accountId);
         List<AccountSavedContent> savedItems =
@@ -237,6 +256,7 @@ public class LearningLabService {
             }
         }
 
+            // Present a compact dashboard feed: newest first, capped for UI performance.
         return new LearningTimelineResponse(
                 accountId,
                 events.stream()
@@ -393,6 +413,7 @@ public class LearningLabService {
         int objectStart = text.indexOf('{');
         int objectEnd = text.lastIndexOf('}');
 
+        // Some model responses may include extra wrapper text; keep only the JSON object.
         if (objectStart >= 0 && objectEnd > objectStart) {
             return text.substring(objectStart, objectEnd + 1);
         }
