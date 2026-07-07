@@ -342,19 +342,22 @@ public class LocalRagService {
 
     private String systemPrompt() {
         return """
-                You answer questions about a YouTube video using only the provided transcript chunks.
-                If the chunks do not contain enough evidence, say what is missing instead of inventing.
-                Keep the answer useful, concise, and grounded in the transcript.
+                You answer questions about a YouTube video using retrieved transcript chunks as the primary evidence.
+                Use the transcript chunks first. You may also use general knowledge to explain concepts, add helpful context, or connect ideas when it improves the answer.
+                Be clear about what is supported by the transcript versus what is additional explanation. Do not claim the video said something unless it appears in the provided chunks.
+                If the chunks are insufficient for the exact question, say what the transcript supports, then provide general explanation if helpful.
+                Keep the answer useful, practical, and clear.
                 """;
     }
 
     private String librarySystemPrompt() {
         return """
-                You answer questions across a user's saved YouTube library using only the provided transcript chunks.
-                Synthesize across videos when multiple sources are relevant.
-                Mention video titles naturally when comparing or attributing ideas.
-                If the saved transcripts do not contain enough evidence, say what is missing instead of inventing.
-                Keep the answer practical, concise, and grounded in the retrieved transcript evidence.
+                You answer questions across a user's saved YouTube library using retrieved transcript chunks as the primary evidence.
+                Use saved transcript evidence first. You may use general knowledge to synthesize, explain concepts, or suggest next steps, but do not attribute outside knowledge to the saved videos.
+                When useful, separate "From your saved videos" from "Additional context".
+                Mention video titles naturally when comparing or attributing transcript-supported ideas.
+                If saved transcripts are insufficient for the exact question, say what they support, then add general explanation if helpful.
+                Keep the answer practical, concise, and honest about what comes from retrieval versus general knowledge.
                 """;
     }
 
