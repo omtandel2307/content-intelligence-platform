@@ -158,7 +158,7 @@ export default async function LibraryPage() {
                   </p>
                   <div className="meta-row">
                     <span>Saved {formatDate(item.savedAt)}</span>
-                    <span>Open workspace</span>
+                    {/* <span>Open workspace</span> */}
                   </div>
                 </div>
               </Link>
