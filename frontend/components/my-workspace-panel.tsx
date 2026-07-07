@@ -70,7 +70,7 @@ export async function MyWorkspacePanel({ accountId }: { accountId: string }) {
     <section className="workspace-dashboard">
       <div className="workspace-header">
         <div className="stack">
-          <p className="eyebrow">My Workspace</p>
+          {/* <p className="eyebrow">My Workspace</p> */}
           <h2 className="section-title">{workspace.account.displayName}</h2>
           <p className="body-copy">
             Continue where this account left off.

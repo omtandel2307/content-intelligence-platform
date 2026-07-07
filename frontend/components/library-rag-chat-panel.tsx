@@ -170,7 +170,7 @@ export function LibraryRagChatPanel({
               <p className="chat-author">
                 {chatMessage.role === "USER"
                   ? "You"
-                  : `Library AI - ${chatMessage.model}`}
+                  : `Library AI`}
               </p>
               {chatMessage.role === "ASSISTANT" ? (
                 <FormattedAiText text={chatMessage.content} />

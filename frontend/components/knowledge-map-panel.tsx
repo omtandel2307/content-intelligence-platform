@@ -96,7 +96,7 @@ export function KnowledgeMapPanel({
           <p className="eyebrow">AI Knowledge Map</p>
           <h3 className="section-title">See what your saved videos teach.</h3>
           <p className="body-copy">
-            OpenAI extracts core topics from saved transcripts and connects how
+            AI extracts core topics from saved transcripts and connects how
             those ideas relate.
           </p>
         </div>

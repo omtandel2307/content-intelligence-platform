@@ -77,7 +77,7 @@ export function ProjectBuilderPanel({
         <p className="eyebrow">Project Builder</p>
         <h3 className="section-title">Design a strong portfolio project.</h3>
         <p className="body-copy">
-          Describe what you want to build, or leave it blank and let OpenAI
+          Describe what you want to build, or leave it blank and let AI
           choose a practical project with the best stack, phases, and scope.
         </p>
       </div>
