@@ -258,10 +258,10 @@ public class ContentQuizService {
 
     private List<String> questionSkillPattern() {
         List<String> skills = new ArrayList<>(List.of(
-                "factual recall",
+                "core concept understanding",
                 "cause and effect",
                 "comparison between ideas",
-                "inference from the transcript",
+                "applying the taught idea",
                 "misconception detection"
         ));
         Collections.shuffle(skills);
@@ -488,9 +488,11 @@ public class ContentQuizService {
 
     private String quizSystemPrompt() {
         return """
-                You generate true/false quizzes from video transcripts.
+                You generate true/false learning-check quizzes from video transcripts.
                 Return strict JSON only. Do not use markdown or commentary.
-                Questions must be answerable from the transcript.
+                First infer the main topic, lesson, or skill being taught.
+                Questions should test what a learner should understand after watching the video, not minor transcript details or exact wording.
+                Questions must still be supported by the transcript's taught ideas.
                 Each question must be a clear statement that can be marked true or false.
                 Each question needs exactly these 2 options: ["True", "False"].
                 correctOptionIndex must be 0 for True or 1 for False.
@@ -507,7 +509,7 @@ public class ContentQuizService {
         int correctOptionIndex = desiredAns ? 0 : 1;
         String correctAnswer = desiredAns ? "True" : "False";
         return """
-                Create exactly 1 true/false quiz question from this transcript excerpt.
+                Create exactly 1 true/false quiz question using this transcript excerpt as source material.
                 This is question %d of %d.
 
                 The target correct answer is: %s.
@@ -515,20 +517,24 @@ public class ContentQuizService {
 
                 Return exactly this JSON shape:
                 {
-                  "question": "A factual statement about the transcript excerpt",
+                  "question": "A learning-check statement about the topic taught in the video",
                   "options": ["True", "False"],
                   "correctOptionIndex": %d,
                   "explanation": "One sentence explaining why the answer is correct."
                 }
 
                 Rules:
-                - The question must be answerable from the transcript excerpt.
+                - Infer what topic, concept, skill, or lesson the excerpt is teaching.
+                - Ask about the taught idea, not the transcript wording.
+                - Do not ask about timestamps, speaker phrasing, examples that are only trivia, or tiny details.
+                - The question should test understanding someone should have after watching this part of the video.
+                - The answer must be supported by the transcript excerpt's taught ideas.
                 - Make the question medium difficulty.
-                - Avoid copying obvious wording directly from the transcript.
-                - If the target correct answer is True, write a statement directly supported by the transcript excerpt.
-                - If the target correct answer is False, write a plausible but clearly contradicted statement.
-                - For false statements, prefer subtle mistakes such as reversing cause/effect, changing scope, confusing two concepts, or overstating a claim.
-                - The explanation must explain why the generated statement is true or false according to the transcript.
+                - Avoid copying wording directly from the transcript.
+                - If the target correct answer is True, write a statement that accurately reflects the concept being taught.
+                - If the target correct answer is False, write a plausible misconception or misunderstanding of the taught concept.
+                - For false statements, prefer subtle mistakes such as reversing cause/effect, changing scope, confusing two concepts, overstating a claim, or applying the idea incorrectly.
+                - The explanation must explain why the generated statement is true or false based on the lesson in the excerpt.
                 - Use exactly the field names shown above.
                 - Use exactly these options: ["True", "False"].
                 - correctOptionIndex must be exactly %d.
