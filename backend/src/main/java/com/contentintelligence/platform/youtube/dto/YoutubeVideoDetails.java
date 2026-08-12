@@ -1,5 +1,7 @@
 package com.contentintelligence.platform.youtube.dto;
 
+import java.io.Serializable;
+
 public record YoutubeVideoDetails(
         String videoId,
         String title,
@@ -10,5 +12,5 @@ public record YoutubeVideoDetails(
         String duration,
         String viewCount,
         String likeCount
-) {
+) implements Serializable {
 }

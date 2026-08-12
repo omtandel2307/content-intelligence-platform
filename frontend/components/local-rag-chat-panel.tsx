@@ -136,7 +136,7 @@ export function LocalRagChatPanel({
     <section className="panel">
       <div className="stack">
         <p className="eyebrow">RAG Chat</p>
-        <h2 className="section-title">Ask this video with OpenAI.</h2>
+        <h2 className="section-title">Ask this video with AI.</h2>
         <p className="body-copy">
           OpenAI answers after retrieving the most relevant transcript chunks
           from Postgres.

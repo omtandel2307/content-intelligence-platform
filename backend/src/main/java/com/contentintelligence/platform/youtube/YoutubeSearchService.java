@@ -6,6 +6,7 @@ import com.contentintelligence.platform.youtube.dto.YoutubeVideoDetails;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -66,6 +67,7 @@ public class YoutubeSearchService {
         }
     }
 
+    @Cacheable(value = "youtubeVideoDetails", key = "#videoId")
     public YoutubeVideoDetails getVideoDetails(String videoId) {
         ensureApiKeyConfigured();
 
